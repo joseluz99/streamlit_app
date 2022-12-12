@@ -68,7 +68,8 @@ def get_data_from_api(switch):
    # Perform request to the API
    
    response = requests.get(url, headers=headers, params=params)
-   if response == 200:
+   
+   if response.status_code == 200:
       outputs = response.json()
    else:
       return None
