@@ -1,225 +1,207 @@
-# To run dashboard type 'streamlit run streamlit_app.py' on the console, inside the virtual environment
-# created to host the project
-
 import streamlit as st
+import bookingManager as BM
+import streamlit_authenticator as stauth
+import REE_API as API_data
 from collections import namedtuple
-from datetime import datetime, timedelta
-import requests
+import datetime
 import math
-import matplotlib.pyplot as plt 
-import seaborn as sb
 import pandas as pd
 import numpy as np
-import plost                # package is used to create plots/charts within streamlit
-from PIL import Image       # package is used to put images within streamlit
+import plost                # this package is used to create plots/charts within streamlit
+from PIL import Image       # this package is used to put images within streamlit
 
-from api_connection import get_data_from_api       
-
+# import requests library
+import requests
+import json
+    
 # Page setting
 st.set_page_config(layout="wide")
 
-with open('style.css') as f:
-    st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+def check_password():
+    """Returns `True` if the user had a correct password."""
 
-### Here starts the web app design
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if (
+            st.session_state["username"] in st.secrets["passwords"]
+            and st.session_state["password"]
+            == st.secrets["passwords"][st.session_state["username"]]
+        ):
+            st.session_state["password_correct"] = True
+            with open('username.txt', 'w') as f:
+                f.write(st.session_state["username"] + "\n")
+            del st.session_state["password"]  # don't store username + password
+            del st.session_state["username"]
+        else:
+            st.session_state["password_correct"] = False
 
-# Introductory presentation
-
-st.title('Welcome to your favorite Dashboard')
-st.subheader('Here you can find a lot of stats about the electricity generation in the Spanish grid.')
-st.subheader('Lets accelerate the energy transition together by sharing information!')
-
-# First component: two tabs with donut charts. One of them shows the electricity mix in the Spanish Grid;
-# the other one shows the carbon emissions related to that electricity by source
-
-tab1, tab2 = st.tabs(["Sources", "Emissions"])
-
-with tab1:
-    
-    # Get raw data from API
-    
-    response = get_data_from_api('sources')
-
-    if response != None:
-        # Retrieve electricity generation sources from the raw data
-        
-        gen_type = []
-        gen_MWh = []
-        for gen_t in response['included']:
-            if gen_t['type'] == 'Total generation':
-                total_generation_MWh = gen_t['attributes']['values'][0]['value']
-            else:
-                gen_type.append(gen_t['type'])
-                gen_MWh.append(gen_t['attributes']['values'][0]['value'])
-
-        df = pd.DataFrame()
-
-        df['gen_type'] = gen_type
-        df['gen_MWh'] = gen_MWh
-        
-        # Create the donut chart with the data
-        
-        st.markdown('Spanish Electricity Mix (' + str(datetime.now().year) + '/' + str(datetime.now().month) + '/' + str(datetime.now().day-1) + ')')
-        plost.donut_chart(                      
-                data=df,
-                theta='gen_MWh',
-                color='gen_type')
+    if "password_correct" not in st.session_state:
+        # First run, show inputs for username + password.
+        st.text_input("Username", on_change=password_entered, key="username")
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
+        return False
+    elif not st.session_state["password_correct"]:
+        # Password not correct, show input + error.
+        st.text_input("Username", on_change=password_entered, key="username")
+        st.text_input(
+            "Password", type="password", on_change=password_entered, key="password"
+        )
+        st.error("😕 User not known or password incorrect")
+        return False
     else:
-        st.text('It seems like the API is currently unavailable. Try again later.  (101)')
+        # Password correct.
+        return True
 
-with tab2:
-    
-    # Get raw data from API
-    
-    response = get_data_from_api('emissions')
+schedule = BM.init_matrix()
+booking = [None] * 24
 
-    if response != None:
-        # Retrieve carbon emissions from the raw data
+if check_password():
         
-        gen_type = []
-        emissions_value = []
-        for instance in response['included']:
-            if instance['type'] == 'tCO2 eq./MWh' or instance['type'] == 'Total tCO2 eq.':
-                continue
+    with open('username.txt', 'r') as f:
+        username = str(f.read()).split('\n')[0]
+    
+    st.markdown('Hello, ' + username)
+    st.markdown('Welcome to the Booking Management site of our smart sustainable sauna\n') 
+    
+    tab1, tab2, tab3 = st.tabs(["Overview", "Economic Options", "Sustainable Options"])
+    
+    df_overview = pd.DataFrame()
+    df_economic = pd.DataFrame()
+    df_sustainable = pd.DataFrame()
+    
+    times = list(range(0, 24))
+    availability = list(range(0, 24))
+    prices = list(range(0, 24))
+    emissions = list(range(0, 24))
+    display_times_book = []
+    display_times_unbook = []
+    
+    for i, hour in enumerate(times):
+        if hour < 12:
+            times[i] = str(hour) + ' AM'
+            prices[i] = int(schedule[i]['price'])
+            emissions[i] = int(schedule[i]['emissions'])
+            if schedule[i]['booked'] == 1:
+                if schedule[i]['client'] == str(username):
+                    display_times_unbook.append(times[i])
+                    if schedule[i]['mode'] == 'Economic':
+                        availability[i] = 'Booked by you in Economic Mode'
+                    elif schedule[i]['mode'] == 'Regular':
+                        availability[i] = 'Booked by you in Regular Mode'
+                else:
+                    availability[i] = 'Booked'
+            elif schedule[i]['booked'] == 0:
+                availability[i] = 'Free'
+                display_times_book.append(times[i])
             else:
-                gen_type.append(instance['type'])
-                emissions_value.append(instance['attributes']['values'][0]['value'])
-
-        df = pd.DataFrame()
-
-        df['gen_type'] = gen_type
-        df['emissions_value'] = emissions_value
-        
-        # Create the donut chart with the data
-        
-        st.markdown('Spanish Electricity Mix Emissions (' + str(datetime.now().year) + '/' + str(datetime.now().month) + '/' + str(datetime.now().day-1) + ')')
-        plost.donut_chart(                      # donut charts
-                data=df,
-                theta='emissions_value',
-                color='gen_type')
-    else:
-        st.text('It seems like the API is currently unavailable. Try again later. (102)')
-
-### Second component: A heatmap that shows the emissions in the Spanish Grid for the last year.
-### The shade/color is given by the scaling of the emissions in ton
-
-# Get raw data from API
-
-response = get_data_from_api('emissions year')
-
-if response != None:
-    # Retrieve carbon emissions for 365 days from the raw data
-
-    day_year = []
-    day_emissions = []
-    for types in response['included']:
-        if types['type'] == 'Total tCO2 eq.':
-            for i, daily_data in enumerate(types['attributes']['values']):
-                day_year.append(daily_data['datetime'].split('T')[0])
-                day_emissions.append(float(daily_data['value']))
-
-    df_year_emissions = pd.DataFrame()
-    df_year_emissions['day_year'] = day_year
-    df_year_emissions['day_emissions'] = day_emissions
-
-    # Create the Heatmap with the data
-
-    st.markdown('Emissions Heatmap (' + str(datetime.now().year-1) + '/' + str(datetime.now().month) + '/' + str(datetime.now().day) + ' to ' +  str(datetime.now().year) + '/' + str(datetime.now().month) + '/' + str(datetime.now().day-1) + ')')             # text is created with markdown
-    plost.time_hist(                        # histogram
-    data=df_year_emissions,
-    date='day_year',
-    x_unit='week',
-    y_unit='day',
-    color='day_emissions',
-    aggregate='mean',
-    legend=None)
+                availability[i] = 'Closed'
+        elif hour == 12:
+            times[i] = str(hour) + ' PM'
+            prices[i] = int(schedule[i]['price'])
+            emissions[i] = int(schedule[i]['emissions'])
+            if schedule[i]['booked'] == 1:
+                if schedule[i]['client'] == str(username):
+                    display_times_unbook.append(times[i])
+                    if schedule[i]['mode'] == 'Economic':
+                        availability[i] = 'Booked by you in Economic Mode'
+                    elif schedule[i]['mode'] == 'Regular':
+                        availability[i] = 'Booked by you in Regular Mode'
+                else:
+                    availability[i] = 'Booked'
+            elif schedule[i]['booked'] == 0:
+                availability[i] = 'Free'
+                display_times_book.append(times[i])
+            else:
+                availability[i] = 'Closed'
+        else:
+            times[i] = str(hour-12) + ' PM'
+            prices[i] = int(schedule[i]['price'])
+            emissions[i] = int(schedule[i]['emissions'])
+            if schedule[i]['booked'] == 1:
+                if schedule[i]['client'] == str(username):
+                    display_times_unbook.append(times[i])
+                    if schedule[i]['mode'] == 'Economic':
+                        availability[i] = 'Booked by you in Economic Mode'
+                    elif schedule[i]['mode'] == 'Regular':
+                        availability[i] = 'Booked by you in Regular Mode'
+                else:
+                    availability[i] = 'Booked'
+            elif schedule[i]['booked'] == 0:
+                availability[i] = 'Free'
+                display_times_book.append(times[i])
+            else:
+                availability[i] = 'Closed'
     
-else:
-    st.text('It seems like the API is currently unavailable. Try again later.  (201)')
+    df_overview['Time'] = times
+    df_overview['Availability'] = availability
+    df_overview['Price [€/MWh]'] = prices
+    df_overview['Estimated Emissions [ton/MWh]'] = emissions
 
-### Third component: scatterplot with the price of electricity against share of renewables in the grid
-### to get a sense of the influence (positive or negative) of the use of these technologies in the PVPC
-### price (price consumers are charged)
-
-# Get raw data from API (renewables share)
-
-response = get_data_from_api('renewable share')
-
-if response != None:
-    # Retrieve renewables share from the raw data
-    # Renewable share is retrieved daily (only option from the API for this indicator)
-    # The period considered is 2 months prior to the current date
-
-    share_ren = [0 for _ in range(len(response['included'][0]['attributes']['values']))]
-    for types in response['included']:
-        if types['attributes']['type'] == 'Renovable':
-            for i in range(len(types['attributes']['values'])):
-                #print(i, types['type'], types['attributes']['values'][i]['datetime'])
-                share_ren[i] = share_ren[i] + float(types['attributes']['values'][i]['percentage'])
-
-    # Loop that retrives the prices for the period considered
-    # Computation time is a challenge because renewable shares are retrieved daily (limitation due to API)
-    # although prices can only be retrieved hourly. Therefore, an average daily price must be computed and
-    # the computation time is considerable. This means that the last component of the dashboard will appear 
-    # between 0 and 60 seconds after the other 2.
-
-    daily_average_price = []
-    for i in range(len(share_ren)):
-        current_date = datetime.now() - timedelta(days=i)
-        day_before = datetime.now() - timedelta(days=i+1)
-
-        start_date = str(day_before.year) + '-' + str(day_before.month) + '-' + str(day_before.day) + 'T00:00'
-        end_date = str(current_date.year) + '-' + str(current_date.month) + '-' + str(current_date.day-1) + 'T23:00'
-
-
-        url = 'https://apidatos.ree.es/en/datos/mercados/precios-mercados-tiempo-real'
-        headers = {'Accept': 'application/json',
-                'Content-Type': 'application/json',
-                'Host': 'apidatos.ree.es'}
-        params = {'start_date': start_date, 'end_date': end_date, 'time_trunc':'hour'}
-
-        response = requests.get(url, headers=headers, params=params)
-        outputs = response.json()
-
-        avg = []
-
-        for j in range(len(outputs['included'][0]['attributes']['values'])):
-            avg.append(outputs['included'][0]['attributes']['values'][j]['value'])
+    df_economic = df_overview[df_overview['Price [€/MWh]'] < df_overview['Price [€/MWh]'].mean()]
+    df_sustainable = df_overview[df_overview['Estimated Emissions [ton/MWh]'] < df_overview['Estimated Emissions [ton/MWh]'].mean()]
+     
+    with tab1:
         
-        daily_average_price.append(sum(avg) / len(avg))
-        #print(outputs['included'][0]['attributes']['values'][j]['datetime'].split('T')[0], sum(avg),len(avg))
-        avg.clear()
+        st.markdown('Here is an overview of the booking schedule for tomorrow: \n') 
         
-    prices_share_df = pd.DataFrame()
-    prices_share_df['daily_average_price'] = daily_average_price
-    prices_share_df['share_ren'] = share_ren
+        col1, col2 = st.columns(2)
 
-    # Create the Scatterplot with the PVPC (€) and share of renewables
+        with col1:
+            st.table(df_overview[df_overview.index < 12])
+        with col2:
+            st.table(df_overview[df_overview.index >= 12])
+    
+    with tab2:
+        
+        st.markdown('In this tab, we suggest you the hours which have the lowest fares for you as a user. \n') 
+        st.markdown('Given our pay-per-use tariff model, here are the hours in which the electricity price is below the daily average:\n') 
+        
+        col1, col2 = st.columns(2)
 
-    st.markdown('Relationship between PVPC prices and the share of Renewables in the grid')
-    st.vega_lite_chart(prices_share_df, {
-        'mark': {'type': 'circle', 'tooltip': True},
-        'encoding': {
-            'x': {'field': 'share_ren', 'type': 'quantitative'},
-            'y': {'field': 'daily_average_price', 'type': 'quantitative'},
-        },
-        },
-                    use_container_width=True)
+        with col1:
+            st.table(df_economic[df_economic.index < 12])
+        with col2:
+            st.table(df_economic[df_economic.index >= 12])
+    
+    with tab3:
+        
+        st.markdown('In this tab, we suggest you the hours which have the least emissions. \n') 
+        st.markdown('Here are the hours in which the emissions from electricity generation are below the daily average:\n') 
 
-    # Interpolation to summarize the impact of increased renewables share in the grid
-    # Possible improvement is showing the tendency line in the chart, which unfortunately 
-    # is still not possible using the plost library.
+        col1, col2 = st.columns(2)
 
-    z = np.polyfit(share_ren, daily_average_price, 1)
-    p = np.poly1d(z)
-
-    if p[1] > 0:
-        st.text('The chart above shows the relationship between the share of renewables in the Spanish Electricity Grid and the Consumers price.')
-        st.text('It shows that for each 10' + '% ' + 'of additional renewables in the grid, the price rises ' + str(int(abs(p[1]/10))) + '€ per MWh')
-    elif p[1] < 0:
-        st.text('The chart above shows the relationship between the share of renewables in the Spanish Electricity Grid and the Consumers price.')
-        st.text('It shows that for each 10' + '% ' + 'of additional renewables in the grid, the price drops ' + str(int(abs(p[1]/10))) + '€ per MWh')
-
-else:
-    st.text('It seems like the API is currently unavailable. Try again later. (301)')
-### End of the dashboard. New components might (and will) be added below...
+        with col1:
+            st.table(df_sustainable[df_sustainable.index < 12])
+        with col2:
+            st.table(df_sustainable[df_sustainable.index >= 12])
+    
+    modes = ['Economic', 'Regular']
+    
+    book_options = st.multiselect('Choose the hours you wish to book', display_times_book)
+    mode = st.selectbox('Choose the mode you wish to book', ('Economic', 'Regular'))    
+    
+    if len(display_times_unbook) != 0:
+        unbook_options = st.multiselect('Choose the hours you wish to unbook', display_times_unbook)
+        
+    if (st.button('Confirm')):
+        
+        if len(book_options) != 0:
+            for hour in book_options:
+                hour_input = hour.split(' ')[1]
+                if 'AM' in hour_input:
+                    schedule = BM.creates_booking(schedule, username, int(hour.split(' ')[0]), mode)
+                else:
+                    schedule = BM.creates_booking(schedule, username, int(hour.split(' ')[0])+12, mode)
+        
+        if len(display_times_unbook) != 0:
+            for hour in unbook_options:
+                hour_input = hour.split(' ')[1]
+                if 'AM' in hour_input:
+                    schedule = BM.cancel_booking(int(hour.split(' ')[0]), schedule)
+                else:
+                    schedule = BM.cancel_booking(int(hour.split(' ')[0])+12, schedule)
+        
+        st.write('Bookings confirmed. Please refresh your page.')
+        
