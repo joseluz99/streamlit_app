@@ -4,3 +4,4 @@ plost
 requests
 matplotlib
 seaborn
+streamlit_authenticator
