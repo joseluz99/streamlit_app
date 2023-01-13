@@ -1,13 +1,10 @@
 import numpy as np
 import REE_API
 import os
-import seaborn as sb
 import requests 
 import json
 import ast
-import plost
 import pandas as pd
-# import plotting library
 import matplotlib
 import matplotlib.pyplot as plt 
 from datetime import date, datetime, timedelta
