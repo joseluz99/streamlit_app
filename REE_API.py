@@ -1,15 +1,20 @@
-# import requests library
 import requests
 import json
-# import plotting library
-#import matplotlib
-#import matplotlib.pyplot as plt
 from datetime import date, datetime, timedelta
 
 def get_real_price_tomorrow():
-    # datetime object containing current date and time
-    tomorrow = date.today() + timedelta(days=1)
-    # Time formate for REE API
+    
+    """
+    Function retrieves day-ahead prices for electricity if called after 5PM
+    Before 5PM it retrieves today's electricity prices
+    """
+    
+    if int(str(datetime.now()).split(' ')[1].split(':')[0]) < 17:
+        tomorrow = date.today()
+    else:
+        tomorrow = date.today() + timedelta(days=1)
+        
+    # Time structure for REE API
     dt_string_start = str(tomorrow.year) + str(tomorrow.month) + str(tomorrow.day) + 'T00:00'
     dt_string_end = str(tomorrow.year) + str(tomorrow.month) + str(tomorrow.day) + 'T23:00'
 
@@ -19,8 +24,8 @@ def get_real_price_tomorrow():
                 'Content-Type': 'application/json',
                 'Host': 'apidatos.ree.es'}
     params = {'start_date': dt_string_start, 'end_date': dt_string_end, 'time_trunc': 'hour'}
-    #params = {'start_date': dt_string_start, 'time_trunc': 'hour'}
 
+    # calling the API
     response = requests.get(endpoint + get_archives, headers=headers, params=params)
 
     values = response.json()
@@ -31,5 +36,5 @@ def get_real_price_tomorrow():
     for value in values['included'][0]['attributes']['values']:
         prices.append(value['value'])
 
+    # return array with 24 entries with price for each hour of the day
     return prices
-

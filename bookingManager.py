@@ -12,6 +12,10 @@ import matplotlib
 import matplotlib.pyplot as plt 
 from datetime import date, datetime, timedelta
 
+"""
+    This file contains all the functions to deal with the schedule of the sauna
+"""
+
 def handle_response_code(response):
     status = response.status_code
     # Check the status code
@@ -28,45 +32,15 @@ def handle_response_code(response):
     else:
         print('server error')
 
-def get_real_price_day ():
-    # datetime object containing current date and time
-    
-    now = datetime.now()
-
-    # Time formate for REE API
-    nowZero = now - timedelta(hours=now.hour)
-    dt_string_start = nowZero.strftime("%Y/%m/%dT%00:00")
-    endhour = nowZero + timedelta(hours=23)
-    dt_string_end = endhour.strftime("%Y/%m/%dT%H:00")
-    #print("date and time =", dt_string)
-
-    endpoint = 'https://apidatos.ree.es'
-    get_archives = '/en/datos/mercados/precios-mercados-tiempo-real'
-    headers = {'Accept': 'application/json',
-               'Content-Type': 'application/json',
-               'Host': 'apidatos.ree.es'}
-    params = {'start_date': dt_string_start, 'end_date': dt_string_end, 'time_trunc': 'hour'}
-
-    response = requests.get(endpoint + get_archives, headers=headers, params=params)
-
-    handle_response_code(response)
-
-    json = response.json()
-
-    spot_market_prices = json['included'][0]
-    values = spot_market_prices['attributes']['values']
-
-    for t in values:
-        t['datetime'] = datetime.fromisoformat(t['datetime'])
-
-    #print(values)
-    return values
-
 def init_matrix():
     # Initialize an empty list
     daily_schedule = []
     
-    date_ = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+    if int(str(datetime.now()).split(' ')[1].split(':')[0]) < 17:
+        date_ = (date.today()).strftime("%Y-%m-%d")
+    else:
+        date_ = (date.today() + timedelta(days=1)).strftime("%Y-%m-%d")
+    
     prices = REE_API.get_real_price_tomorrow()
     
     # Create 24 dictionaries and append them to the list
@@ -103,28 +77,23 @@ def init_matrix():
         
 def loads_matrix():
     daily_schedule = []
-    # Open file and create data structure to store it
+    # Open file and store schedule 
     with open('bookings_file.txt', 'r') as f:
         content = f.read()
     
     for i, row in enumerate(content.splitlines()):
         if i != 0:
             daily_schedule.append(ast.literal_eval(row))
-            
+    
+    # return the schedule contained in bookings_file.txt  
     return daily_schedule
-
-def checks_availability(schedule):
-    
-    available_hours = []
-    
-    for i in range(len(schedule)):
-        
-        if schedule[i]["booked"] == 0:
-            available_hours.append(i)
-    
-    return available_hours
     
 def creates_booking(schedule, username, hour, mode):
+    
+    """ 
+    Function creates new booking with username, hour and desired mode and updates schedule and 
+    bookings_file.txt
+    """
     
     schedule[hour]["client"] = username
     schedule[hour]["booked"] = 1
@@ -136,6 +105,10 @@ def creates_booking(schedule, username, hour, mode):
 
 def cancel_booking(hour, schedule):
     
+    """ 
+    Function deletes a booking based on the hour and updates schedule and bookings_file.txt
+    """
+    
     schedule[hour]["client"] = ''
     schedule[hour]["booked"] = 0
     schedule[hour]["mode"] = ''
@@ -145,129 +118,13 @@ def cancel_booking(hour, schedule):
     return schedule
 
 def updates_file(schedule):
-    
+    """
+    Function overwrites bookings_file.txt with the updated schedule received as argument
+    """
     with open('bookings_file.txt', 'w') as f:
         f.write(datetime.now().strftime("%Y-%m-%d") + "\n")
         # Write each dictionary to the file on a new line
         for hour in schedule:
             f.write(str(hour) + '\n')
+
   
-def loads_usernames():
-    username_list = []
-    
-    with open('usernames.txt', 'r') as f:
-        content = f.read()
-    
-    for i, row in enumerate(content.splitlines()):
-        username_list.append(row.split(', ')[0])
-    
-    return username_list
-  
-def checks_password(username, password):
-    
-    with open('usernames.txt', 'r') as f:
-        content = f.read()
-    
-    for i, row in enumerate(content.splitlines()):
-        if row.split(', ')[0] == username:
-            if row.split(', ')[1] == password:
-                return 1
-            else:
-                return 0
-
-def add_user(username, password, email):
-    with open('usernames.txt', 'a') as f:
-        f.write(username + ', ' + password + ', ' + email + '\n')
-
-def check_bookings_username(schedule, username):
-    
-    bookings = []
-    
-    for i, hour in enumerate(schedule):
-        if hour['client'] == username:
-           bookings.append(i) 
-           
-    return bookings
-
-def validate_email(email):
-    
-    if '@' not in email:
-        print('here 1')
-        return 0
-
-    if '.com' not in email and '.pt' not in email and '.es' not in email and '.it' not in email and '.ge' not in email and '.at' not in email:
-        print('here 2')
-        return 0
-    
-    return 1
-    
-#get_real_price_day()
-# schedule = init_matrix()
-# username_list = loads_usernames()
-
-# username = input('Username : ')
-
-# if username in username_list:
-#     password = getpass.getpass()
-# else:
-#     print('New user. Welcome!')
-    
-#     while{True}:
-#         email = input('Please insert your email: ')
-#         if validate_email(email) == 1:
-#             break
-#         print('Invalid email.')
-    
-#     while{True}:
-#         password1 = getpass.getpass('Please set your password: ')
-#         password2 = getpass.getpass('Repeat your password: ')
-#         if password1 == password2:
-#             password = password1
-#             add_user(username, password, email)
-#             print('Welcome, ' + str(username) + '!')
-#             break
-#         print('Passwords do not correspond.\n')
-
-# while{True}:
-
-#     if checks_password(username, password) == 1:
-#         print('Hello ' + str(username) + '!')
-#         break
-#     else:
-#         print('Wrong password.')
-#         password = getpass.getpass('Insert password again: ')
-        
-
-# availability = checks_availability(schedule)
-# bookings = check_bookings_username(schedule, username)
-
-# if len(bookings) != 0:
-#     print('\n')
-#     print('You already have bookings for this date, at times:')
-#     print(*bookings, sep = ', ')
-#     print('Select one of the previous hours to cancel booking or create a new booking with')
-    
-    
-# print('The available hours for ' + datetime.now().strftime("%Y-%m-%d") + ' are:')
-# print(*availability, sep = ', ')
-
-# hour = int(input('Hour desired: '))
-
-# if hour in availability:
-#     schedule = creates_booking(schedule, username, hour)
-#     print('Booking confirmed!\n')
-# else:
-#     if hour in bookings:
-#         print('Are you sure you want to cancel your booking for ' + str(hour) + '? (y/n)')
-        
-#         answer = input()
-        
-#         if answer == 'y' or answer == 'Y':
-#             schedule = cancel_booking(hour, schedule)
-#             print('Booking cancelled \n')
-#         else:
-#             print('Booking at ' + str(hour) + ' remains')
-#     else:
-#         print('Try again. No availability at ' + str(hour))
-
-# print('end')
