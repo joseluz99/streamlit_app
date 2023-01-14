@@ -23,8 +23,10 @@ def schedule_to_df(schedule):
             if schedule[i]['booked'] == 1:
                 if schedule[i]['mode'] == 'Eco':
                     availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Eco Mode'
-                elif schedule[i]['mode'] == 'Regular':
-                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular Mode'
+                elif schedule[i]['mode'] == 'Regular 50':
+                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular 50 Mode'
+                else:
+                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular 47 Mode'
             elif schedule[i]['booked'] == 0:
                 availability[i] = 'No Bookings'
             else:
@@ -36,8 +38,10 @@ def schedule_to_df(schedule):
             if schedule[i]['booked'] == 1:
                 if schedule[i]['mode'] == 'Eco':
                     availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Eco Mode'
-                elif schedule[i]['mode'] == 'Regular':
-                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular Mode'
+                elif schedule[i]['mode'] == 'Regular 50':
+                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular 50 Mode'
+                else:
+                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular 47 Mode'
             elif schedule[i]['booked'] == 0:
                 availability[i] = 'No Bookings'
             else:
@@ -49,8 +53,10 @@ def schedule_to_df(schedule):
             if schedule[i]['booked'] == 1:
                 if schedule[i]['mode'] == 'Eco':
                     availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Eco Mode'
-                elif schedule[i]['mode'] == 'Regular':
-                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular Mode'
+                elif schedule[i]['mode'] == 'Regular 50':
+                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular 50 Mode'
+                else:
+                    availability[i] = 'Booked by ' + str(schedule[i]['client']) + ' in Regular 47 Mode'
             elif schedule[i]['booked'] == 0:
                 availability[i] = 'No Bookings'
             else:

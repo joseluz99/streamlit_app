@@ -97,8 +97,10 @@ if check_password():
                     display_times_unbook.append(times[i])
                     if schedule[i]['mode'] == 'Eco':
                         availability[i] = 'Booked by you in Economic Mode'
-                    elif schedule[i]['mode'] == 'Regular':
-                        availability[i] = 'Booked by you in Regular Mode'
+                    elif schedule[i]['mode'] == 'Regular 50':
+                        availability[i] = 'Booked by you in Regular 50 Mode'
+                    else:
+                        availability[i] = 'Booked by you in Regular 47 Mode'
                 else:
                     availability[i] = 'Booked'
             elif schedule[i]['booked'] == 0:
@@ -115,8 +117,10 @@ if check_password():
                     display_times_unbook.append(times[i])
                     if schedule[i]['mode'] == 'Eco':
                         availability[i] = 'Booked by you in Economic Mode'
-                    elif schedule[i]['mode'] == 'Regular':
-                        availability[i] = 'Booked by you in Regular Mode'
+                    elif schedule[i]['mode'] == 'Regular 50':
+                        availability[i] = 'Booked by you in Regular 50 Mode'
+                    else:
+                        availability[i] = 'Booked by you in Regular 47 Mode'
                 else:
                     availability[i] = 'Booked'
             elif schedule[i]['booked'] == 0:
@@ -133,8 +137,10 @@ if check_password():
                     display_times_unbook.append(times[i])
                     if schedule[i]['mode'] == 'Eco':
                         availability[i] = 'Booked by you in Economic Mode'
-                    elif schedule[i]['mode'] == 'Regular':
-                        availability[i] = 'Booked by you in Regular Mode'
+                    elif schedule[i]['mode'] == 'Regular 50':
+                        availability[i] = 'Booked by you in Regular 50 Mode'
+                    else:
+                        availability[i] = 'Booked by you in Regular 47 Mode'
                 else:
                     availability[i] = 'Booked'
             elif schedule[i]['booked'] == 0:
@@ -199,7 +205,7 @@ if check_password():
     
     # multiselect where user can choose which hours to book for using the sauna
     book_options = st.multiselect('Choose the hours you wish to book', display_times_book)
-    mode = st.selectbox('Choose the mode you wish to book', ('Eco', 'Regular'))    
+    mode = st.selectbox('Choose the mode you wish to book', ('Eco', 'Regular 50', 'Regular 47'))    
     
     # in case the user has booked slots, multiselect where user can choose which hours to unbook
     if len(display_times_unbook) != 0:
